@@ -1,0 +1,77 @@
+module kernels
+  use cudafor
+  implicit none
+contains
+
+attributes(global) subroutine eval_nyq_kernel(nm, sindex, dx, &
+    b_abs_a, b_abs_b, b_abs_c, b_abs_d, &
+    g_a, g_b, g_c, g_d, &
+    bsubs_a, bsubs_b, bsubs_c, bsubs_d, &
+    bsubu_a, bsubu_b, bsubu_c, bsubu_d, &
+    bsubv_a, bsubv_b, bsubv_c, bsubv_d, &
+    bsupu_a, bsupu_b, bsupu_c, bsupu_d, &
+    bsupv_a, bsupv_b, bsupv_c, bsupv_d, &
+    b_abs_arr, b_abs_ds_arr, g_arr, bsubs_arr, bsubu_arr, bsubv_arr, bsupu_arr, bsupv_arr)
+
+  implicit none
+  integer, value :: nm, sindex
+  real(8), value :: dx
+  integer :: k
+  real(8) :: dx2, dx3
+
+  ! ---- 반드시 device 속성! assumed-shape 권장 ----
+  real(8), device :: b_abs_a(:,:), b_abs_b(:,:), b_abs_c(:,:), b_abs_d(:,:)
+  real(8), device :: g_a(:,:),    g_b(:,:),    g_c(:,:),    g_d(:,:)
+  real(8), device :: bsubs_a(:,:), bsubs_b(:,:), bsubs_c(:,:), bsubs_d(:,:)
+  real(8), device :: bsubu_a(:,:), bsubu_b(:,:), bsubu_c(:,:), bsubu_d(:,:)
+  real(8), device :: bsubv_a(:,:), bsubv_b(:,:), bsubv_c(:,:), bsubv_d(:,:)
+  real(8), device :: bsupu_a(:,:), bsupu_b(:,:), bsupu_c(:,:), bsupu_d(:,:)
+  real(8), device :: bsupv_a(:,:), bsupv_b(:,:), bsupv_c(:,:), bsupv_d(:,:)
+
+  real(8), device :: b_abs_arr(:), b_abs_ds_arr(:), g_arr(:)
+  real(8), device :: bsubs_arr(:), bsubu_arr(:), bsubv_arr(:), bsupu_arr(:), bsupv_arr(:)
+
+  k = (blockIdx%x-1)*blockDim%x + threadIdx%x
+  if (k < 1 .or. k > nm) return
+
+  dx2 = dx*dx
+  dx3 = dx2*dx
+
+  b_abs_arr(k)    = b_abs_d(k,sindex)*dx3 + b_abs_c(k,sindex)*dx2 + b_abs_b(k,sindex)*dx + b_abs_a(k,sindex)
+  b_abs_ds_arr(k) = 3.0d0*b_abs_d(k,sindex)*dx2 + 2.0d0*b_abs_c(k,sindex)*dx + b_abs_b(k,sindex)
+
+  g_arr(k)     = g_d(k,sindex)*dx3 + g_c(k,sindex)*dx2 + g_b(k,sindex)*dx + g_a(k,sindex)
+  bsubs_arr(k) = bsubs_d(k,sindex)*dx3 + bsubs_c(k,sindex)*dx2 + bsubs_b(k,sindex)*dx + bsubs_a(k,sindex)
+  bsubu_arr(k) = bsubu_d(k,sindex)*dx3 + bsubu_c(k,sindex)*dx2 + bsubu_b(k,sindex)*dx + bsubu_a(k,sindex)
+  bsubv_arr(k) = bsubv_d(k,sindex)*dx3 + bsubv_c(k,sindex)*dx2 + bsubv_b(k,sindex)*dx + bsubv_a(k,sindex)
+  bsupu_arr(k) = bsupu_d(k,sindex)*dx3 + bsupu_c(k,sindex)*dx2 + bsupu_b(k,sindex)*dx + bsupu_a(k,sindex)
+  bsupv_arr(k) = bsupv_d(k,sindex)*dx3 + bsupv_c(k,sindex)*dx2 + bsupv_b(k,sindex)*dx + bsupv_a(k,sindex)
+end subroutine eval_nyq_kernel
+
+
+attributes(global) subroutine eval_base_kernel(nm, sindex, dx, &
+    rmnc_a, rmnc_b, rmnc_c, rmnc_d, &
+    zmns_a, zmns_b, zmns_c, zmns_d, &
+    rmnc_arr, zmns_arr)
+  implicit none
+  integer, value :: nm, sindex
+  real(8), value :: dx
+  integer :: k
+  real(8) :: dx2, dx3
+
+  real(8), device :: rmnc_a(:,:), rmnc_b(:,:), rmnc_c(:,:), rmnc_d(:,:)
+  real(8), device :: zmns_a(:,:), zmns_b(:,:), zmns_c(:,:), zmns_d(:,:)
+
+  real(8), device :: rmnc_arr(:), zmns_arr(:)
+
+  k = (blockIdx%x-1)*blockDim%x + threadIdx%x
+  if (k < 1 .or. k > nm) return
+
+  dx2 = dx*dx
+  dx3 = dx2*dx
+
+  rmnc_arr(k) = rmnc_d(k,sindex)*dx3 + rmnc_c(k,sindex)*dx2 + rmnc_b(k,sindex)*dx + rmnc_a(k,sindex)
+  zmns_arr(k) = zmns_d(k,sindex)*dx3 + zmns_c(k,sindex)*dx2 + zmns_b(k,sindex)*dx + zmns_a(k,sindex)
+end subroutine eval_base_kernel
+
+end module kernels

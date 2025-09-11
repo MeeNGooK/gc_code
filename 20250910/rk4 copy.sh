@@ -1,0 +1,37 @@
+#!/bin/bash
+
+
+MODDIR=build
+OUTFILE=main.exe
+
+mkdir -p "$MODDIR"
+
+# ===== 3. NetCDF 관련 모듈 먼저 컴파일 =====
+echo ">>> Compiling NetCDF reader..."
+gfortran -c reader/nc_reader.f90 -J "$MODDIR" -I$NETCDF_DIR/include
+
+# ===== 4. 나머지 소스 파일 목록 (추가 소스도 쉽게 넣을 수 있음) =====
+SRC=(
+  modules/spline2.f90
+  modules/spline.f90
+  modules/fourier2.f90
+  modules/calc.f90
+
+  rk4_revised.f90
+
+)
+
+# ===== 5. 나머지 소스 컴파일 & 링크 (nc_reader.o 포함) =====
+echo ">>> Compiling other sources..."
+gfortran -I "$MODDIR" "${SRC[@]}" nc_reader.o -J "$MODDIR" \
+    -I$NETCDF_DIR/include -L$NETCDF_DIR/lib -lnetcdff -o "$OUTFILE"
+
+compile_status=$?
+
+# ===== 6. 실행 =====
+if [ $compile_status -eq 0 ]; then
+  echo ">>> Compilation successful. Running $OUTFILE..."
+  ./"$OUTFILE"
+else
+  echo ">>> Compilation failed. $OUTFILE will not run."
+fi

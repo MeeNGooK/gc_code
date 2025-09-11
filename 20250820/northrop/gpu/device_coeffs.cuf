@@ -1,0 +1,59 @@
+module device_coeffs
+  use cudafor
+  implicit none
+  integer :: ns_d, mnmax_d, mnmax_nyq_d
+
+  real(8), device, allocatable :: b_abs_a_d(:,:), b_abs_b_d(:,:), b_abs_c_d(:,:), b_abs_d_d(:,:)
+  real(8), device, allocatable :: g_a_d(:,:), g_b_d(:,:), g_c_d(:,:), g_d_d(:,:)
+  real(8), device, allocatable :: bsubs_a_d(:,:), bsubs_b_d(:,:), bsubs_c_d(:,:), bsubs_d_d(:,:)
+  real(8), device, allocatable :: bsubu_a_d(:,:), bsubu_b_d(:,:), bsubu_c_d(:,:), bsubu_d_d(:,:)
+  real(8), device, allocatable :: bsubv_a_d(:,:), bsubv_b_d(:,:), bsubv_c_d(:,:), bsubv_d_d(:,:)
+  real(8), device, allocatable :: bsupu_a_d(:,:), bsupu_b_d(:,:), bsupu_c_d(:,:), bsupu_d_d(:,:)
+  real(8), device, allocatable :: bsupv_a_d(:,:), bsupv_b_d(:,:), bsupv_c_d(:,:), bsupv_d_d(:,:)
+  real(8), device, allocatable :: rmnc_a_d(:,:), rmnc_b_d(:,:), rmnc_c_d(:,:), rmnc_d_d(:,:)
+  real(8), device, allocatable :: zmns_a_d(:,:), zmns_b_d(:,:), zmns_c_d(:,:), zmns_d_d(:,:)
+contains
+  subroutine init_device_coeffs(ns, mnmax, mnmax_nyq, &
+      b_abs_a,b_abs_b,b_abs_c,b_abs_d, g_a,g_b,g_c,g_d, &
+      bsubs_a,bsubs_b,bsubs_c,bsubs_d, bsubu_a,bsubu_b,bsubu_c,bsubu_d, &
+      bsubv_a,bsubv_b,bsubv_c,bsubv_d, bsupu_a,bsupu_b,bsupu_c,bsupu_d, &
+      bsupv_a,bsupv_b,bsupv_c,bsupv_d, rmnc_a,rmnc_b,rmnc_c,rmnc_d, zmns_a,zmns_b,zmns_c,zmns_d)
+    implicit none
+    integer, intent(in) :: ns, mnmax, mnmax_nyq
+    real(8), intent(in) :: b_abs_a(:,:), b_abs_b(:,:), b_abs_c(:,:), b_abs_d(:,:)
+    real(8), intent(in) :: g_a(:,:), g_b(:,:), g_c(:,:), g_d(:,:)
+    real(8), intent(in) :: bsubs_a(:,:), bsubs_b(:,:), bsubs_c(:,:), bsubs_d(:,:)
+    real(8), intent(in) :: bsubu_a(:,:), bsubu_b(:,:), bsubu_c(:,:), bsubu_d(:,:)
+    real(8), intent(in) :: bsubv_a(:,:), bsubv_b(:,:), bsubv_c(:,:), bsubv_d(:,:)
+    real(8), intent(in) :: bsupu_a(:,:), bsupu_b(:,:), bsupu_c(:,:), bsupu_d(:,:)
+    real(8), intent(in) :: bsupv_a(:,:), bsupv_b(:,:), bsupv_c(:,:), bsupv_d(:,:)
+    real(8), intent(in) :: rmnc_a(:,:), rmnc_b(:,:), rmnc_c(:,:), rmnc_d(:,:)
+    real(8), intent(in) :: zmns_a(:,:), zmns_b(:,:), zmns_c(:,:), zmns_d(:,:)
+
+    ns_d        = ns
+    mnmax_d     = mnmax
+    mnmax_nyq_d = mnmax_nyq
+
+    allocate(b_abs_a_d(mnmax_nyq_d,ns_d), b_abs_b_d(mnmax_nyq_d,ns_d-1), b_abs_c_d(mnmax_nyq_d,ns_d), b_abs_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(g_a_d(mnmax_nyq_d,ns_d), g_b_d(mnmax_nyq_d,ns_d-1), g_c_d(mnmax_nyq_d,ns_d), g_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(bsubs_a_d(mnmax_nyq_d,ns_d), bsubs_b_d(mnmax_nyq_d,ns_d-1), bsubs_c_d(mnmax_nyq_d,ns_d), bsubs_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(bsubu_a_d(mnmax_nyq_d,ns_d), bsubu_b_d(mnmax_nyq_d,ns_d-1), bsubu_c_d(mnmax_nyq_d,ns_d), bsubu_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(bsubv_a_d(mnmax_nyq_d,ns_d), bsubv_b_d(mnmax_nyq_d,ns_d-1), bsubv_c_d(mnmax_nyq_d,ns_d), bsubv_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(bsupu_a_d(mnmax_nyq_d,ns_d), bsupu_b_d(mnmax_nyq_d,ns_d-1), bsupu_c_d(mnmax_nyq_d,ns_d), bsupu_d_d(mnmax_nyq_d,ns_d-1))
+    allocate(bsupv_a_d(mnmax_nyq_d,ns_d), bsupv_b_d(mnmax_nyq_d,ns_d-1), bsupv_c_d(mnmax_nyq_d,ns_d), bsupv_d_d(mnmax_nyq_d,ns_d-1))
+
+    allocate(rmnc_a_d(mnmax_d,ns_d), rmnc_b_d(mnmax_d,ns_d-1), rmnc_c_d(mnmax_d,ns_d), rmnc_d_d(mnmax_d,ns_d-1))
+    allocate(zmns_a_d(mnmax_d,ns_d), zmns_b_d(mnmax_d,ns_d-1), zmns_c_d(mnmax_d,ns_d), zmns_d_d(mnmax_d,ns_d-1))
+
+    ! host -> device 복사 (단순 대입)
+    b_abs_a_d = b_abs_a;  b_abs_b_d = b_abs_b;  b_abs_c_d = b_abs_c;  b_abs_d_d = b_abs_d
+    g_a_d     = g_a;      g_b_d     = g_b;      g_c_d     = g_c;      g_d_d     = g_d
+    bsubs_a_d = bsubs_a;  bsubs_b_d = bsubs_b;  bsubs_c_d = bsubs_c;  bsubs_d_d = bsubs_d
+    bsubu_a_d = bsubu_a;  bsubu_b_d = bsubu_b;  bsubu_c_d = bsubu_c;  bsubu_d_d = bsubu_d
+    bsubv_a_d = bsubv_a;  bsubv_b_d = bsubv_b;  bsubv_c_d = bsubv_c;  bsubv_d_d = bsubv_d
+    bsupu_a_d = bsupu_a;  bsupu_b_d = bsupu_b;  bsupu_c_d = bsupu_c;  bsupu_d_d = bsupu_d
+    bsupv_a_d = bsupv_a;  bsupv_b_d = bsupv_b;  bsupv_c_d = bsupv_c;  bsupv_d_d = bsupv_d
+    rmnc_a_d  = rmnc_a;   rmnc_b_d  = rmnc_b;   rmnc_c_d  = rmnc_c;   rmnc_d_d  = rmnc_d
+    zmns_a_d  = zmns_a;   zmns_b_d  = zmns_b;   zmns_c_d  = zmns_c;   zmns_d_d  = zmns_d
+  end subroutine
+end module device_coeffs

@@ -8,7 +8,8 @@ program main
     use nc_reader
     use cubic_spline_mod
     use spline2_mod
-
+    use device_coeffs
+    use gpu_eval
     implicit none
     type(nc_data) :: nc
 
@@ -66,31 +67,28 @@ program main
 
 
 
-    sig=-1.0d0
+    sig=1.0d0
 
-    q = 2*1.602176634d-19  ! 전자 전하 electron charge
-    m = 7000*9.10938356d-31   ! 전자 질량 electron mass
+    q = 1.602176634d-19  ! 전자 전하 electron charge
+    m = 9.10938356d-31   ! 전자 질량 electron mass
     eps=m/q              ! epsilon
 
     ! Setting (arbitary values)@@@@@@@@@@@@@@@@@@@@@@@@@@@2
-    x0=(/0.195, 1.3962, 8.1237/)  !(s, theta, zeta)
-    u=7.0d5
-    v_perp=6.3d5
+    x0=(/0.06, 0.1, 0.1/)  !(s, theta, zeta)
+    u=1.0d5
+    v_perp=0.5d4
 
-    dt=1.0d-11
-    steps=2000000
+    dt=1.0d-10
+    steps=1000000
     zipper=100
     
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Header
     unit_out = 10
     open(unit=unit_out, file="dat.dat", status="replace", action="write", form="formatted")
-    write(unit_out,*) "sig=", sig
+
 
     write(unit_out,*) "dt=", dt
     write(unit_out,*) "steps=", steps
-    write(unit_out,*) "x0=", x0
-    write(unit_out,*) "u=", u
-    write(unit_out,*) "v_perp=", v_perp
     write(unit_out,*)
     write(unit_out,'(A)') "istep          p0              t0              rout            zout"
 
@@ -168,7 +166,11 @@ program main
 
 
 ! Numerical integration using rk4 method
-
+    call init_device_coeffs(nc%ns, nc%mnmax, nc%mnmax_nyq, &
+        b_abs_a,b_abs_b,b_abs_c,b_abs_d, g_a,g_b,g_c,g_d, &
+        bsubs_a,bsubs_b,bsubs_c,bsubs_d, bsubu_a,bsubu_b,bsubu_c,bsubu_d, &
+        bsubv_a,bsubv_b,bsubv_c,bsubv_d, bsupu_a,bsupu_b,bsupu_c,bsupu_d, &
+        bsupv_a,bsupv_b,bsupv_c,bsupv_d, rmnc_a,rmnc_b,rmnc_c,rmnc_d, zmns_a,zmns_b,zmns_c,zmns_d)
     do istep=1,steps
         
 
@@ -182,24 +184,8 @@ program main
         dx=x0(1)-nc%phi(sindex)
 
         ! Evaluate spline3 at x0(1) for all required quantities
-        do kstep=1,nc%mnmax_nyq
-            b_abs_arr(kstep)=b_abs_d(kstep,sindex)*(dx**3)+b_abs_c(kstep,sindex)*(dx**2)+b_abs_b(kstep,sindex)*dx+b_abs_a(kstep,sindex)
-            b_abs_ds_arr(kstep)=3.0d0*b_abs_d(kstep,sindex)*(dx**2)+2.0d0*b_abs_c(kstep,sindex)*dx+b_abs_b(kstep,sindex)
-
-            g_arr(kstep)=g_d(kstep,sindex)*(dx**3)+g_c(kstep,sindex)*(dx**2)+g_b(kstep,sindex)*dx+g_a(kstep,sindex)
-            bsubs_arr(kstep)=bsubs_d(kstep,sindex)*(dx**3)+bsubs_c(kstep,sindex)*(dx**2)+bsubs_b(kstep,sindex)*dx+bsubs_a(kstep,sindex)
-            bsubu_arr(kstep)=bsubu_d(kstep,sindex)*(dx**3)+bsubu_c(kstep,sindex)*(dx**2)+bsubu_b(kstep,sindex)*dx+bsubu_a(kstep,sindex)
-            bsubv_arr(kstep)=bsubv_d(kstep,sindex)*(dx**3)+bsubv_c(kstep,sindex)*(dx**2)+bsubv_b(kstep,sindex)*dx+bsubv_a(kstep,sindex)
-
-            bsupu_arr(kstep)=bsupu_d(kstep,sindex)*(dx**3)+bsupu_c(kstep,sindex)*(dx**2)+bsupu_b(kstep,sindex)*dx+bsupu_a(kstep,sindex) 
-            bsupv_arr(kstep)=bsupv_d(kstep,sindex)*(dx**3)+bsupv_c(kstep,sindex)*(dx**2)+bsupv_b(kstep,sindex)*dx+bsupv_a(kstep,sindex) 
-
-        end do
-
-        do lstep=1,nc%mnmax
-            rmnc_arr(lstep)=rmnc_d(lstep,sindex)*(dx**3)+rmnc_c(lstep,sindex)*(dx**2)+rmnc_b(lstep,sindex)*dx+rmnc_a(lstep,sindex)
-            zmns_arr(lstep)=zmns_d(lstep,sindex)*(dx**3)+zmns_c(lstep,sindex)*(dx**2)+zmns_b(lstep,sindex)*dx+zmns_a(lstep,sindex)
-        end do        
+        call eval_at_sindex(sindex, dx, b_abs_arr, b_abs_ds_arr, g_arr, bsubs_arr, bsubu_arr, bsubv_arr, bsupu_arr, bsupv_arr, rmnc_arr, zmns_arr)
+       
         !!!!!!!!!!!!! Writing r,z, zeta   !!!!!!!!!!!!!!!!
         r=compc_arg(x0(2), x0(3), nc%xm, nc%xn, rmnc_arr)
         z=comps_arg(x0(2), x0(3), nc%xm, nc%xn, zmns_arr)
@@ -430,7 +416,6 @@ program main
 
 
         if (mod(istep,100000)==0) then
-            print*, "istep=",  istep
             print*, "grad_b=", grad_b
             print*, "bsub=", bsub
             print*, "bsup=", bsup

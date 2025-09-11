@@ -1,0 +1,97 @@
+module cubic_eval_kernels
+  use cudafor
+  implicit none
+contains
+
+  ! --- 커널 #1: 크기 n_nyq (nc%mnmax_nyq)용, 여러 배열 동시 계산 ---
+  attributes(global) subroutine eval_cubic_nyq( &
+       n_nyq, sindex, dx, &
+       ! outputs
+       b_abs_arr, b_abs_ds_arr, g_arr, &
+       bsubs_arr, bsubu_arr, bsubv_arr, &
+       bsupu_arr, bsupv_arr, &
+       currumnc_arr, currvmnc_arr, &
+       ! coeffs
+       b_abs_a, b_abs_b, b_abs_c, b_abs_d, &
+       g_a, g_b, g_c, g_d, &
+       bsubs_a, bsubs_b, bsubs_c, bsubs_d, &
+       bsubu_a, bsubu_b, bsubu_c, bsubu_d, &
+       bsubv_a, bsubv_b, bsubv_c, bsubv_d, &
+       bsupu_a, bsupu_b, bsupu_c, bsupu_d, &
+       bsupv_a, bsupv_b, bsupv_c, bsupv_d, &
+       currumnc_a, currumnc_b, currumnc_c, currumnc_d, &
+       currvmnc_a, currvmnc_b, currvmnc_c, currvmnc_d)
+
+    implicit none
+    integer,  value :: n_nyq, sindex
+    real(8),  value :: dx
+    integer :: k
+    real(8) :: dx2, dx3
+
+    ! outputs (length: n_nyq)
+    real(8), device :: b_abs_arr(:), b_abs_ds_arr(:), g_arr(:)
+    real(8), device :: bsubs_arr(:), bsubu_arr(:), bsubv_arr(:)
+    real(8), device :: bsupu_arr(:), bsupv_arr(:)
+    real(8), device :: currumnc_arr(:), currvmnc_arr(:)
+
+    ! coeffs (shape: (n_nyq, ns)), 첫 인덱스가 kstep
+    real(8), device :: b_abs_a(:,:), b_abs_b(:,:), b_abs_c(:,:), b_abs_d(:,:)
+    real(8), device :: g_a(:,:), g_b(:,:), g_c(:,:), g_d(:,:)
+    real(8), device :: bsubs_a(:,:), bsubs_b(:,:), bsubs_c(:,:), bsubs_d(:,:)
+    real(8), device :: bsubu_a(:,:), bsubu_b(:,:), bsubu_c(:,:), bsubu_d(:,:)
+    real(8), device :: bsubv_a(:,:), bsubv_b(:,:), bsubv_c(:,:), bsubv_d(:,:)
+    real(8), device :: bsupu_a(:,:), bsupu_b(:,:), bsupu_c(:,:), bsupu_d(:,:)
+    real(8), device :: bsupv_a(:,:), bsupv_b(:,:), bsupv_c(:,:), bsupv_d(:,:)
+    real(8), device :: currumnc_a(:,:), currumnc_b(:,:), currumnc_c(:,:), currumnc_d(:,:)
+    real(8), device :: currvmnc_a(:,:), currvmnc_b(:,:), currvmnc_c(:,:), currvmnc_d(:,:)
+
+    k = (blockIdx%x - 1) * blockDim%x + threadIdx%x
+    if (k > n_nyq) return
+
+    dx2 = dx*dx
+    dx3 = dx2*dx
+
+    b_abs_arr(k)   = b_abs_d(k,sindex)*dx3 + b_abs_c(k,sindex)*dx2 + b_abs_b(k,sindex)*dx + b_abs_a(k,sindex)
+    b_abs_ds_arr(k)= 3.d0*b_abs_d(k,sindex)*dx2 + 2.d0*b_abs_c(k,sindex)*dx + b_abs_b(k,sindex)
+
+    g_arr(k) = g_d(k,sindex)*dx3 + g_c(k,sindex)*dx2 + g_b(k,sindex)*dx + g_a(k,sindex)
+
+    bsubs_arr(k) = bsubs_d(k,sindex)*dx3 + bsubs_c(k,sindex)*dx2 + bsubs_b(k,sindex)*dx + bsubs_a(k,sindex)
+    bsubu_arr(k) = bsubu_d(k,sindex)*dx3 + bsubu_c(k,sindex)*dx2 + bsubu_b(k,sindex)*dx + bsubu_a(k,sindex)
+    bsubv_arr(k) = bsubv_d(k,sindex)*dx3 + bsubv_c(k,sindex)*dx2 + bsubv_b(k,sindex)*dx + bsubv_a(k,sindex)
+
+    bsupu_arr(k) = bsupu_d(k,sindex)*dx3 + bsupu_c(k,sindex)*dx2 + bsupu_b(k,sindex)*dx + bsupu_a(k,sindex)
+    bsupv_arr(k) = bsupv_d(k,sindex)*dx3 + bsupv_c(k,sindex)*dx2 + bsupv_b(k,sindex)*dx + bsupv_a(k,sindex)
+
+    currumnc_arr(k) = currumnc_d(k,sindex)*dx3 + currumnc_c(k,sindex)*dx2 + currumnc_b(k,sindex)*dx + currumnc_a(k,sindex)
+    currvmnc_arr(k) = currvmnc_d(k,sindex)*dx3 + currvmnc_c(k,sindex)*dx2 + currvmnc_b(k,sindex)*dx + currvmnc_a(k,sindex)
+  end subroutine eval_cubic_nyq
+
+
+  ! --- 커널 #2: 크기 n_mn (nc%mnmax)에서 rmnc/zmns만 계산 ---
+  attributes(global) subroutine eval_cubic_mn( &
+       n_mn, sindex, dx, &
+       rmnc_arr, rmnc_a, rmnc_b, rmnc_c, rmnc_d, &
+       zmns_arr, zmns_a, zmns_b, zmns_c, zmns_d)
+
+    implicit none
+    integer,  value :: n_mn, sindex
+    real(8),  value :: dx
+    integer :: l
+    real(8) :: dx2, dx3
+
+    real(8), device :: rmnc_arr(:), zmns_arr(:)
+    real(8), device :: rmnc_a(:,:), rmnc_b(:,:), rmnc_c(:,:), rmnc_d(:,:)
+    real(8), device :: zmns_a(:,:), zmns_b(:,:), zmns_c(:,:), zmns_d(:,:)
+
+    l = (blockIdx%x - 1) * blockDim%x + threadIdx%x
+    if (l > n_mn) return
+
+    dx2 = dx*dx
+    dx3 = dx2*dx
+
+    rmnc_arr(l) = rmnc_d(l,sindex)*dx3 + rmnc_c(l,sindex)*dx2 + rmnc_b(l,sindex)*dx + rmnc_a(l,sindex)
+    zmns_arr(l) = zmns_d(l,sindex)*dx3 + zmns_c(l,sindex)*dx2 + zmns_b(l,sindex)*dx + zmns_a(l,sindex)
+  end subroutine eval_cubic_mn
+
+end module cubic_eval_kernels

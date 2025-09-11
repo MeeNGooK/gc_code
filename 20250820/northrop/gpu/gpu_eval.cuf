@@ -1,0 +1,70 @@
+module gpu_eval
+  use cudafor
+  use device_coeffs
+  implicit none
+  ! device-side 아웃풋 버퍼
+  real(8), device, allocatable :: b_abs_arr_d(:), b_abs_ds_arr_d(:), g_arr_d(:)
+  real(8), device, allocatable :: bsubs_arr_d(:), bsubu_arr_d(:), bsubv_arr_d(:)
+  real(8), device, allocatable :: bsupu_arr_d(:), bsupv_arr_d(:)
+  real(8), device, allocatable :: rmnc_arr_d(:), zmns_arr_d(:)
+  logical :: allocated_out = .false.
+contains
+  subroutine alloc_outputs(nm_nyq, nm)
+    integer, intent(in) :: nm_nyq, nm
+    if (.not. allocated_out) then
+      allocate(b_abs_arr_d(nm_nyq), b_abs_ds_arr_d(nm_nyq), g_arr_d(nm_nyq))
+      allocate(bsubs_arr_d(nm_nyq), bsubu_arr_d(nm_nyq), bsubv_arr_d(nm_nyq))
+      allocate(bsupu_arr_d(nm_nyq), bsupv_arr_d(nm_nyq))
+      allocate(rmnc_arr_d(nm), zmns_arr_d(nm))
+      allocated_out = .true.
+    end if
+  end subroutine
+
+  subroutine eval_at_sindex(sindex, dx, &
+      b_abs_arr, b_abs_ds_arr, g_arr, &
+      bsubs_arr, bsubu_arr, bsubv_arr, bsupu_arr, bsupv_arr, &
+      rmnc_arr, zmns_arr)
+    use kernels
+    integer, intent(in) :: sindex
+    real(8), intent(in) :: dx
+    real(8), intent(out) :: b_abs_arr(:), b_abs_ds_arr(:), g_arr(:), bsubs_arr(:), bsubu_arr(:), bsubv_arr(:), bsupu_arr(:), bsupv_arr(:)
+    real(8), intent(out) :: rmnc_arr(:), zmns_arr(:)
+    integer :: nm_nyq, nm, tpb, nb
+
+    nm_nyq = size(b_abs_arr)
+    nm     = size(rmnc_arr)
+
+    call alloc_outputs(nm_nyq, nm)
+
+    tpb = 128
+    nb  = (nm_nyq + tpb - 1)/tpb
+    call eval_nyq_kernel<<<nb,tpb>>>(nm_nyq, sindex, dx, &
+      b_abs_a_d, b_abs_b_d, b_abs_c_d, b_abs_d_d, &
+      g_a_d, g_b_d, g_c_d, g_d_d, &
+      bsubs_a_d, bsubs_b_d, bsubs_c_d, bsubs_d_d, &
+      bsubu_a_d, bsubu_b_d, bsubu_c_d, bsubu_d_d, &
+      bsubv_a_d, bsubv_b_d, bsubv_c_d, bsubv_d_d, &
+      bsupu_a_d, bsupu_b_d, bsupu_c_d, bsupu_d_d, &
+      bsupv_a_d, bsupv_b_d, bsupv_c_d, bsupv_d_d, &
+      b_abs_arr_d, b_abs_ds_arr_d, g_arr_d, bsubs_arr_d, bsubu_arr_d, bsubv_arr_d, bsupu_arr_d, bsupv_arr_d)
+
+    tpb = 128
+    nb  = (nm + tpb - 1)/tpb
+    call eval_base_kernel<<<nb,tpb>>>(nm, sindex, dx, &
+      rmnc_a_d, rmnc_b_d, rmnc_c_d, rmnc_d_d, &
+      zmns_a_d, zmns_b_d, zmns_c_d, zmns_d_d, &
+      rmnc_arr_d, zmns_arr_d)
+
+    ! device -> host (단순 대입 = cudaMemcpy)
+    b_abs_arr    = b_abs_arr_d
+    b_abs_ds_arr = b_abs_ds_arr_d
+    g_arr        = g_arr_d
+    bsubs_arr    = bsubs_arr_d
+    bsubu_arr    = bsubu_arr_d
+    bsubv_arr    = bsubv_arr_d
+    bsupu_arr    = bsupu_arr_d
+    bsupv_arr    = bsupv_arr_d
+    rmnc_arr     = rmnc_arr_d
+    zmns_arr     = zmns_arr_d
+  end subroutine
+end module gpu_eval
