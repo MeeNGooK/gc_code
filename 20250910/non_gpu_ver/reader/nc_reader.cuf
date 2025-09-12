@@ -1,0 +1,84 @@
+module nc_reader
+  use netcdf
+  implicit none
+  private
+  public :: read_nc, nc_data
+
+  type :: nc_data   ! 필요하면 추가
+    integer :: ns, mnmax, mnmax_nyq
+    integer, allocatable :: xm(:), xn(:), xm_nyq(:), xn_nyq(:)
+    real(8), allocatable :: bsupumnc(:,:), bsupvmnc(:,:), bmnc(:,:), gmnc(:,:), phi(:), bsubsmns(:,:), bsubumnc(:,:), bsubvmnc(:,:)
+    real(8), allocatable :: rmnc(:,:), zmns(:,:) ,currumnc(:,:), currvmnc(:,:)
+  end type nc_data
+
+contains
+
+  subroutine read_nc(filename, ncd)
+    character(len=*), intent(in) :: filename
+    type(nc_data), intent(out) :: ncd
+    integer :: ncid, status
+    integer :: nsid, mnmaxid, mnmax_nyqid, xmid, xnid, xm_nyqid, xn_nyqid
+    integer :: bsupumncid, bsupvmncid, bmncid, rmncid, zmnsid, phiid, gmncid
+    integer :: bsubsmnsid, bsubumncid, bsubvmncid, currumncid, currvmncid
+
+    status = nf90_open("wout_iota0_42.nc", nf90_nowrite, ncid)
+    
+    !! 값 저장-------------------------------
+    status = nf90_inq_varid(ncid, "ns", nsid)
+    status = nf90_inq_varid(ncid, "mnmax", mnmaxid)
+    status = nf90_inq_varid(ncid, "mnmax_nyq", mnmax_nyqid)
+    status = nf90_inq_varid(ncid, "xm", xmid)
+    status = nf90_inq_varid(ncid, "xn", xnid)
+    status = nf90_inq_varid(ncid, "xm_nyq", xm_nyqid)
+    status = nf90_inq_varid(ncid, "xn_nyq", xn_nyqid)
+    status = nf90_inq_varid(ncid, "bsupumnc", bsupumncid)
+    status = nf90_inq_varid(ncid, "bsupvmnc", bsupvmncid)
+    status = nf90_inq_varid(ncid, "bmnc", bmncid)
+    status = nf90_inq_varid(ncid, "rmnc", rmncid)
+    status = nf90_inq_varid(ncid, "zmns", zmnsid)
+    status = nf90_inq_varid(ncid, "phi", phiid)
+    status = nf90_inq_varid(ncid, "gmnc", gmncid)
+    status = nf90_inq_varid(ncid, "bsubsmns", bsubsmnsid)
+    status = nf90_inq_varid(ncid, "bsubumnc", bsubumncid)
+    status = nf90_inq_varid(ncid, "bsubvmnc", bsubvmncid)
+    status = nf90_inq_varid(ncid, "currumnc", currumncid)
+    status = nf90_inq_varid(ncid, "currvmnc", currvmncid)
+
+    !! 필요하면 추가
+
+    !! 값 읽기-------------------------------
+    status = nf90_get_var(ncid, nsid, ncd%ns)
+    status = nf90_get_var(ncid, mnmaxid, ncd%mnmax)
+    status = nf90_get_var(ncid, mnmax_nyqid, ncd%mnmax_nyq)
+  
+    !!! 공간 할당
+    allocate(ncd%xm(ncd%mnmax), ncd%xn(ncd%mnmax), ncd%phi(ncd%ns),ncd%xm_nyq(ncd%mnmax_nyq), ncd%xn_nyq(ncd%mnmax_nyq))
+    allocate(ncd%bsupumnc(ncd%mnmax_nyq,ncd%ns), ncd%bsupvmnc(ncd%mnmax_nyq,ncd%ns), ncd%bmnc(ncd%mnmax_nyq,ncd%ns), ncd%gmnc(ncd%mnmax_nyq,ncd%ns))
+    allocate(ncd%rmnc(ncd%mnmax, ncd%ns), ncd%zmns(ncd%mnmax, ncd%ns), ncd%bsubsmns(ncd%mnmax_nyq, ncd%ns), ncd%bsubumnc(ncd%mnmax_nyq, ncd%ns), ncd%bsubvmnc(ncd%mnmax_nyq, ncd%ns))
+    allocate(ncd%currumnc(ncd%mnmax_nyq, ncd%ns), ncd%currvmnc(ncd%mnmax_nyq, ncd%ns))
+    status = nf90_get_var(ncid, xmid, ncd%xm)
+    status = nf90_get_var(ncid, xnid, ncd%xn)
+    status = nf90_get_var(ncid, xm_nyqid, ncd%xm_nyq)
+    status = nf90_get_var(ncid, xn_nyqid, ncd%xn_nyq)
+    status = nf90_get_var(ncid, bsupumncid, ncd%bsupumnc)
+    status = nf90_get_var(ncid, bsupvmncid, ncd%bsupvmnc)
+    status = nf90_get_var(ncid, bmncid, ncd%bmnc)
+    status = nf90_get_var(ncid, rmncid, ncd%rmnc)
+    status = nf90_get_var(ncid, phiid, ncd%phi)
+    status = nf90_get_var(ncid, zmnsid, ncd%zmns)
+    status = nf90_get_var(ncid, phiid, ncd%phi)
+    status = nf90_get_var(ncid, gmncid, ncd%gmnc)
+    status = nf90_get_var(ncid, bsubsmnsid, ncd%bsubsmns)
+    status = nf90_get_var(ncid, bsubumncid, ncd%bsubumnc)
+    status = nf90_get_var(ncid, bsubvmncid, ncd%bsubvmnc)
+    status = nf90_get_var(ncid, currumncid, ncd%currumnc)
+    status = nf90_get_var(ncid, currvmncid, ncd%currvmnc)
+    status = nf90_close(ncid)
+    !! 값 저장-------------------------------
+
+
+
+!-----------------------------------------------------------------------------------------------
+  end subroutine read_nc
+
+end module nc_reader
