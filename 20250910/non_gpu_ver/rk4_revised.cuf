@@ -20,7 +20,7 @@ program main
     real(8) :: x_temp(3), u_temp
     real(8) :: bxgb(3)
 
-    real(8) :: r, z, zeta, dx
+    real(8) :: r, z, zeta, dx, dx2, dx3
     integer :: sindex  ! zipper for writing(1 write for every 'zipper' steps)
 
 !!!! Below are variables for storing spline coefficients
@@ -213,13 +213,7 @@ program main
     end do
 
         ! end of saving spline3 coeffs.
-    ! copying to device
-    b_abs_a_d = b_abs_a; b_abs_b_d = b_abs_b; b_abs_c_d = b_abs_c; b_abs_d_d = b_abs_d
-    g_a_d     = g_a;     g_b_d     = g_b;     g_c_d     = g_c;     g_d_d     = g_d
 
-
-    rmnc_a_d = rmnc_a; rmnc_b_d = rmnc_b; rmnc_c_d = rmnc_c; rmnc_d_d = rmnc_d
-    zmns_a_d = zmns_a; zmns_b_d = zmns_b; zmns_c_d = zmns_c; zmns_d_d = zmns_d
 
 ! Numerical integration using rk4 method
 

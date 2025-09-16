@@ -9,7 +9,7 @@ module set_values
     real(8), parameter :: dt=4.0d-10
     real(8), parameter :: sig=-1.0d0
 
-    INTEGER, parameter :: steps=4000000, zipper=400
+    INTEGER, parameter :: steps=200000, zipper=400
 
     real(8) :: u, v_perp, v_perp_2
 

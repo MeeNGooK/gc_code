@@ -3,6 +3,7 @@
 ! Assumption 3. mu is an invariant. That is, u and mu are declared at initialization
 ! Assumption 4. The sign of sqrt{g} is not corrected
 program main
+    use cudafor
     use set_values
     use fourier2
     use nc_reader
@@ -27,7 +28,6 @@ program main
 !!!! for spline3 coeffs
 
     ! for cuda kernels
-
 
     real(8), allocatable :: b_abs_a(:,:), b_abs_b(:,:), b_abs_c(:,:), b_abs_d(:,:)
     real(8), allocatable :: b_abs_arr(:), b_abs_ds_arr(:)
@@ -59,15 +59,15 @@ program main
 
 
     !!! for device
-    real(8), device, allocatable :: b_abs_a_d(:,:), b_abs_b_d(:,:), b_abs_c_d(:,:), b_abs_d_d(:,:)
-    real(8), device, allocatable :: g_a_d(:,:), g_b_d(:,:), g_c_d(:,:), g_d_d(:,:)
-    real(8), device, allocatable :: bsubs_a_d(:,:), bsubs_b_d(:,:), bsubs_c_d(:,:), bsubs_d_d(:,:)
-    real(8), device, allocatable :: bsubu_a_d(:,:), bsubu_b_d(:,:), bsubu_c_d(:,:), bsubu_d_d(:,:)
-    real(8), device, allocatable :: bsubv_a_d(:,:), bsubv_b_d(:,:), bsubv_c_d(:,:), bsubv_d_d(:,:)
-    real(8), device, allocatable :: bsupu_a_d(:,:), bsupu_b_d(:,:), bsupu_c_d(:,:), bsupu_d_d(:,:)
-    real(8), device, allocatable :: bsupv_a_d(:,:), bsupv_b_d(:,:), bsupv_c_d(:,:), bsupv_d_d(:,:)
-    real(8), device, allocatable :: currumnc_a_d(:,:), currumnc_b_d(:,:), currumnc_c_d(:,:), currumnc_d_d(:,:)
-    real(8), device, allocatable :: currvmnc_a_d(:,:), currvmnc_b_d(:,:), currvmnc_c_d(:,:), currvmnc_d_d(:,:)
+    real(8), device, allocatable :: b_abs_a_d(:), b_abs_b_d(:), b_abs_c_d(:), b_abs_d_d(:)
+    real(8), device, allocatable :: g_a_d(:), g_b_d(:), g_c_d(:), g_d_d(:)
+    real(8), device, allocatable :: bsubs_a_d(:), bsubs_b_d(:), bsubs_c_d(:), bsubs_d_d(:)
+    real(8), device, allocatable :: bsubu_a_d(:), bsubu_b_d(:), bsubu_c_d(:), bsubu_d_d(:)
+    real(8), device, allocatable :: bsubv_a_d(:), bsubv_b_d(:), bsubv_c_d(:), bsubv_d_d(:)
+    real(8), device, allocatable :: bsupu_a_d(:), bsupu_b_d(:), bsupu_c_d(:), bsupu_d_d(:)
+    real(8), device, allocatable :: bsupv_a_d(:), bsupv_b_d(:), bsupv_c_d(:), bsupv_d_d(:)
+    real(8), device, allocatable :: currumnc_a_d(:), currumnc_b_d(:), currumnc_c_d(:), currumnc_d_d(:)
+    real(8), device, allocatable :: currvmnc_a_d(:), currvmnc_b_d(:), currvmnc_c_d(:), currvmnc_d_d(:)
 
     real(8), device, allocatable :: b_abs_arr_d(:), b_abs_ds_arr_d(:), g_arr_d(:)
     real(8), device, allocatable :: bsubs_arr_d(:), bsubu_arr_d(:), bsubv_arr_d(:)
@@ -75,9 +75,14 @@ program main
     real(8), device, allocatable :: currumnc_arr_d(:), currvmnc_arr_d(:)
 
     ! rmnc/zmns용도 마찬가지
-    real(8), device, allocatable :: rmnc_a_d(:,:), rmnc_b_d(:,:), rmnc_c_d(:,:), rmnc_d_d(:,:)
-    real(8), device, allocatable :: zmns_a_d(:,:), zmns_b_d(:,:), zmns_c_d(:,:), zmns_d_d(:,:)
+    real(8), device, allocatable :: rmnc_a_d(:), rmnc_b_d(:), rmnc_c_d(:), rmnc_d_d(:)
+    real(8), device, allocatable :: zmns_a_d(:), zmns_b_d(:), zmns_c_d(:), zmns_d_d(:)
     real(8), device, allocatable :: rmnc_arr_d(:), zmns_arr_d(:)
+
+
+    ! for kernel
+    type(dim3) :: grid, tblock
+
 
 
     integer :: n_nyq, n_mn
@@ -100,7 +105,9 @@ program main
 
     call init_val()
 
-
+    ! grid, block set
+    tblock=dim3(256,1,1)
+    grid=dim3((nc%mnmax_nyq+255)/256,1,1)
     
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Header
     unit_out = 10
@@ -214,12 +221,12 @@ program main
 
         ! end of saving spline3 coeffs.
     ! copying to device
-    b_abs_a_d = b_abs_a; b_abs_b_d = b_abs_b; b_abs_c_d = b_abs_c; b_abs_d_d = b_abs_d
-    g_a_d     = g_a;     g_b_d     = g_b;     g_c_d     = g_c;     g_d_d     = g_d
+    ! b_abs_a_d = b_abs_a; b_abs_b_d = b_abs_b; b_abs_c_d = b_abs_c; b_abs_d_d = b_abs_d
+    ! g_a_d     = g_a;     g_b_d     = g_b;     g_c_d     = g_c;     g_d_d     = g_d
 
 
-    rmnc_a_d = rmnc_a; rmnc_b_d = rmnc_b; rmnc_c_d = rmnc_c; rmnc_d_d = rmnc_d
-    zmns_a_d = zmns_a; zmns_b_d = zmns_b; zmns_c_d = zmns_c; zmns_d_d = zmns_d
+    ! rmnc_a_d = rmnc_a; rmnc_b_d = rmnc_b; rmnc_c_d = rmnc_c; rmnc_d_d = rmnc_d
+    ! zmns_a_d = zmns_a; zmns_b_d = zmns_b; zmns_c_d = zmns_c; zmns_d_d = zmns_d
 
 ! Numerical integration using rk4 method
 
@@ -234,6 +241,26 @@ program main
         if (sindex < 1) sindex = 1
         if (sindex > nc%ns-1) sindex = nc%ns-1
         dx=x0(1)-nc%phi(sindex)
+        dx2=dx*dx
+        dx3=dx2*dx
+
+        b_abs_a_d=b_abs_a(:,sindex); b_abs_b_d=b_abs_b(:,sindex); b_abs_c_d=b_abs_c(:,sindex); b_abs_d_d=b_abs_d(:,sindex)
+        g_a_d=g_a(:,sindex); g_b_d=g_b(:,sindex); g_c_d=g_c(:,sindex); g_d_d=g_d(:,sindex)
+        bsubs_a_d=bsubs_a(:,sindex); bsubs_b_d=bsubs_b(:,sindex); bsubs_c_d=bsubs_c(:,sindex); bsubs_d_d=bsubs_d(:,sindex)
+        bsubu_a_d=bsubu_a(:,sindex); bsubu_b_d=bsubu_b(:,sindex); bsubu_c_d=bsubu_c(:,sindex); bsubu_d_d=bsubu_d(:,sindex)
+        bsubv_a_d=bsubv_a(:,sindex); bsubv_b_d=bsubv_b(:,sindex); bsubv_c_d=bsubv_c(:,sindex); bsubv_d_d=bsubv_d(:,sindex)
+        bsupu_a_d=bsupu_a(:,sindex); bsupu_b_d=bsupu_b(:,sindex); bsupu_c_d=bsupu_c(:,sindex); bsupu_d_d=bsupu_d(:,sindex)
+        bsupv_a_d=bsupv_a(:,sindex); bsupv_b_d=bsupv_b(:,sindex); bsupv_c_d=bsupv_c(:,sindex); bsupv_d_d=bsupv_d(:,sindex)
+        currumnc_a_d=currumnc_a(:,sindex); currumnc_b_d=currumnc_b(:,sindex); currumnc_c_d=currumnc_c(:,sindex); currumnc_d_d=currumnc_d(:,sindex)
+        currvmnc_a_d=currvmnc_a(:,sindex); currvmnc_b_d=currvmnc_b(:,sindex); currvmnc_c_d=currvmnc_c(:,sindex); currvmnc_d_d=currvmnc_d(:,sindex)
+
+        rmnc_a_d=rmnc_a(:,sindex); rmnc_b_d=rmnc_b(:,sindex); rmnc_c_d=rmnc_c(:,sindex); rmnc_d_d=rmnc_d(:,sindex)
+        zmns_a_d=zmns_a(:,sindex); zmns_b_d=zmns_b(:,sindex); zmns_c_d=zmns_c(:,sindex); zmns_d_d=zmns_d(:,sindex)
+
+        ! copy completed
+
+
+
 
         do kstep=1,nc%mnmax_nyq
             b_abs_arr(kstep)=b_abs_d(kstep,sindex)*(dx**3)+b_abs_c(kstep,sindex)*(dx**2)+b_abs_b(kstep,sindex)*dx+b_abs_a(kstep,sindex)

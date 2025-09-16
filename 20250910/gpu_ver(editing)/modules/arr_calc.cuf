@@ -1,0 +1,25 @@
+module arr_calc
+contains
+    attributes(global) subroutine arr_add(dx, dx2, dx3, mn,mn_nyq &
+    , b_abs_arr,b_abs_ds_arr, g_arr &
+    , bsubsmns_arr, bsubumnc_arr, bsubvmnc_arr &
+    , bsupumnc_arr, bsupvmnc_arr, currumnc_arr, currvmnc_arr, rmnc_arr, zmnc_arr &
+    , b_abs_arr_a, b_abs_arr_b, b_abs_arr_c, b_abs_arr_d &
+    , b_abs_ds_arr_a, b_abs_ds_arr_b, b_abs_ds_arr_c, b_abs_ds_arr_d &
+    , g_arr_a, g_arr_b, g_arr_c, g_arr_d &
+    , bsubsmns_arr_a, bsubsmns_arr_b, bsubsmns_arr_c, bsubsmns_arr_d &
+    , bsubumnc_arr_a, bsubumnc_arr_b, bsubumnc_arr_c, bsubumnc_arr_d &
+    , bsubvmnc_arr_a, bsubvmnc_arr_b, bsubvmnc_arr_c, bsubvmnc_arr_d &
+    , bsupumnc_arr_a, bsupumnc_arr_b, bsupumnc_arr_c, bsupumnc_arr_d &
+    , bsupvmnc_arr_a, bsupvmnc_arr_b, bsupvmnc_arr_c, bsupvmnc_arr_d &
+    , currumnc_arr_a, currumnc_arr_b, currumnc_arr_c, currumnc_arr_d &
+    , currvmnc_arr_a, currvmnc_arr_b, currvmnc_arr_c, currvmnc_arr_d &
+    , rmnc_arr_a, rmnc_arr_b, rmnc_arr_c, rmnc_arr_d &
+    , zmnc_arr_a, zmnc_arr_b, zmnc_arr_c, zmnc_arr_d)
+        implicit none
+        integer :: i
+        real, value :: dx, dx2, dx3, mn, mn_nyq
+        real :: b_abs_arr
+
+    end subroutine arr_add
+end module arr_calc
