@@ -25,8 +25,6 @@ program main
     real(8) :: bxgb(3)
 
     real(8) :: r, z, zeta, dx, dx2, dx3
-    real(8) :: drift
-    real(8) :: bzero, bmin, bmax, epsilon
 
     integer :: sindex  ! zipper for writing(1 write for every 'zipper' steps)
 
@@ -267,7 +265,7 @@ program main
         call crossp2(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
 
         b_n=bsup+eps*u*((mu0*j/b_abs)+(bxgb/(b_abs**2)))  ! row 1
-        b_para_n=b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2))   ! row 2
+        b_para_n=(b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2)))   ! row 2
         dudt=-(v_perp_2/(2.0d0*b_abs))*DOT_PRODUCT(grad_b,bsup)/b_para_n  ! row 3
         dxdt=(b_abs/b_para_n)*((u*b_n/b_abs)+(m*v_perp_2/(2*q*(b_abs**3)))*bxgb)
         

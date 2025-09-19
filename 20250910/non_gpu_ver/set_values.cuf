@@ -6,10 +6,10 @@ module set_values
     real(8), parameter :: q = 1.0*1.602176634d-19  ! 전자 전하 electron charge
     real(8), parameter :: eps  =m/q     ! epsilon
       ! Constants
-    real(8), parameter :: dt=4.0d-10
+    real(8), parameter :: dt=4.0d-9
     real(8), parameter :: sig=-1.0d0
 
-    INTEGER, parameter :: steps=100000, zipper=400
+    INTEGER, parameter :: steps=60000000, zipper=400
 
     real(8) :: u, v_perp, v_perp_2
 
