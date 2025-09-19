@@ -2,12 +2,16 @@
 ! Assumption 2. Time Independent
 ! Assumption 3. mu is an invariant. That is, u and mu are declared at initialization
 ! Assumption 4. The sign of sqrt{g} is not corrected
+
+! Revised on 20250919 : Added precomputed sine values
+
 program main
     use set_values
-    use fourier2
+    use fourier3
     use nc_reader
     use cubic_spline_mod
     use spline2_mod
+    use trig_compute
 
     implicit none
     type(nc_data) :: nc
@@ -21,6 +25,7 @@ program main
     real(8) :: bxgb(3)
 
     real(8) :: r, z, zeta, dx, dx2, dx3
+
     integer :: sindex  ! zipper for writing(1 write for every 'zipper' steps)
 
 !!!! Below are variables for storing spline coefficients
@@ -57,27 +62,8 @@ program main
     real(8), allocatable :: currvmnc_arr(:)
 
 
-
-    !!! for device
-    real(8), device, allocatable :: b_abs_a_d(:,:), b_abs_b_d(:,:), b_abs_c_d(:,:), b_abs_d_d(:,:)
-    real(8), device, allocatable :: g_a_d(:,:), g_b_d(:,:), g_c_d(:,:), g_d_d(:,:)
-    real(8), device, allocatable :: bsubs_a_d(:,:), bsubs_b_d(:,:), bsubs_c_d(:,:), bsubs_d_d(:,:)
-    real(8), device, allocatable :: bsubu_a_d(:,:), bsubu_b_d(:,:), bsubu_c_d(:,:), bsubu_d_d(:,:)
-    real(8), device, allocatable :: bsubv_a_d(:,:), bsubv_b_d(:,:), bsubv_c_d(:,:), bsubv_d_d(:,:)
-    real(8), device, allocatable :: bsupu_a_d(:,:), bsupu_b_d(:,:), bsupu_c_d(:,:), bsupu_d_d(:,:)
-    real(8), device, allocatable :: bsupv_a_d(:,:), bsupv_b_d(:,:), bsupv_c_d(:,:), bsupv_d_d(:,:)
-    real(8), device, allocatable :: currumnc_a_d(:,:), currumnc_b_d(:,:), currumnc_c_d(:,:), currumnc_d_d(:,:)
-    real(8), device, allocatable :: currvmnc_a_d(:,:), currvmnc_b_d(:,:), currvmnc_c_d(:,:), currvmnc_d_d(:,:)
-
-    real(8), device, allocatable :: b_abs_arr_d(:), b_abs_ds_arr_d(:), g_arr_d(:)
-    real(8), device, allocatable :: bsubs_arr_d(:), bsubu_arr_d(:), bsubv_arr_d(:)
-    real(8), device, allocatable :: bsupu_arr_d(:), bsupv_arr_d(:)
-    real(8), device, allocatable :: currumnc_arr_d(:), currvmnc_arr_d(:)
-
-    ! rmnc/zmns용도 마찬가지
-    real(8), device, allocatable :: rmnc_a_d(:,:), rmnc_b_d(:,:), rmnc_c_d(:,:), rmnc_d_d(:,:)
-    real(8), device, allocatable :: zmns_a_d(:,:), zmns_b_d(:,:), zmns_c_d(:,:), zmns_d_d(:,:)
-    real(8), device, allocatable :: rmnc_arr_d(:), zmns_arr_d(:)
+    !! revised on 20250910 : added variables for precomputed sine, cosine values
+    real(8), allocatable :: cosvals(:), sinvals(:), cosvals_nyq(:), sinvals_nyq(:)
 
 
     integer :: n_nyq, n_mn
@@ -123,20 +109,11 @@ program main
     n_nyq = nc%mnmax_nyq
     n_mn  = nc%mnmax
 ! coeffs
-    allocate(b_abs_a_d(n_nyq, nc%ns), b_abs_b_d(n_nyq, nc%ns-1), b_abs_c_d(n_nyq, nc%ns), b_abs_d_d(n_nyq, nc%ns-1))
-    allocate(g_a_d(n_nyq, nc%ns),     g_b_d(n_nyq, nc%ns-1),     g_c_d(n_nyq, nc%ns),     g_d_d(n_nyq, nc%ns-1))
-    ! ... 동일 패턴으로 bsubs_*, bsubu_*, bsubv_*, bsupu_*, bsupv_*, currumnc_*, currvmnc_* 전부 allocate
 
-    allocate(rmnc_a_d(n_mn, nc%ns), rmnc_b_d(n_mn, nc%ns-1), rmnc_c_d(n_mn, nc%ns), rmnc_d_d(n_mn, nc%ns-1))
-    allocate(zmns_a_d(n_mn, nc%ns), zmns_b_d(n_mn, nc%ns-1), zmns_c_d(n_mn, nc%ns), zmns_d_d(n_mn, nc%ns-1))
 
-    ! outputs
-    allocate(b_abs_arr_d(n_nyq), b_abs_ds_arr_d(n_nyq), g_arr_d(n_nyq))
-    allocate(bsubs_arr_d(n_nyq), bsubu_arr_d(n_nyq), bsubv_arr_d(n_nyq))
-    allocate(bsupu_arr_d(n_nyq), bsupv_arr_d(n_nyq))
-    allocate(currumnc_arr_d(n_nyq), currvmnc_arr_d(n_nyq))
 
-    allocate(rmnc_arr_d(n_mn), zmns_arr_d(n_mn))
+! coeffs
+
 
 
     ! Allocating spline3 coeff arrays
@@ -180,8 +157,9 @@ program main
     !saving spline3 coeffs
 
     ! for test
-    allocate(cosvals(nc%mnmax), sinvals(nc%mnmax), )
-
+    allocate(cosvals(nc%mnmax), sinvals(nc%mnmax), cosvals_nyq(nc%mnmax_nyq), sinvals_nyq(nc%mnmax_nyq))
+    
+    !saving spline3 coeffs
 
     do jstep=1, nc%mnmax_nyq
         call spline_getter(deltax, nc%bmnc(jstep, :), b_abs_a(jstep, :), b_abs_b(jstep, :), &
@@ -256,34 +234,35 @@ program main
             zmns_arr(lstep)=zmns_d(lstep,sindex)*(dx**3)+zmns_c(lstep,sindex)*(dx**2)+zmns_b(lstep,sindex)*dx+zmns_a(lstep,sindex)
         end do        
 
-
+        call compute_trig(x0(2), x0(3), nc%xm, nc%xn, sinvals, cosvals)  ! precomputing sine, cosine values for mnmax
+        call compute_trig(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, sinvals_nyq, cosvals_nyq)  ! precomputing sine, cosine values for mnmax_nyq
         !!!!!!!!!!!!! Writing r,z, zeta   !!!!!!!!!!!!!!!!
-        r=compc_arg(x0(2), x0(3), nc%xm, nc%xn, rmnc_arr)
-        z=comps_arg(x0(2), x0(3), nc%xm, nc%xn, zmns_arr)
+        r=compc_arg(x0(2), x0(3), nc%xm, nc%xn, rmnc_arr, cosvals)
+        z=comps_arg(x0(2), x0(3), nc%xm, nc%xn, zmns_arr, cosvals)
 
         if (mod(istep,zipper)==0) then
             write(unit_out,'(I8,3ES20.10)') istep,r,z,x0(3)
         end if
 
 
-        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr)
-        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
+        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr, cosvals_nyq)
+        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
 
-        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr)
-        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr)
-        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr)
+        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr, sinvals_nyq)
+        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr, cosvals_nyq)
+        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr, cosvals_nyq)
         bsup(1)=0.0d0
-        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr)
-        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr)
-        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr)
+        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr, cosvals_nyq)
+        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr, cosvals_nyq)
+        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr, cosvals_nyq)
+        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr, cosvals_nyq)
 
         j(1)=0.0d0
-        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr)
-        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr)
+        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr, cosvals_nyq)
+        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr, cosvals_nyq)
 
-        call crossp(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
+        call crossp2(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
 
         b_n=bsup+eps*u*((mu0*j/b_abs)+(bxgb/(b_abs**2)))  ! row 1
         b_para_n=b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2))   ! row 2
@@ -321,29 +300,30 @@ program main
 
         end do
     
-        do lstep=1,nc%mnmax
-            rmnc_arr(lstep)=rmnc_d(lstep,sindex)*(dx**3)+rmnc_c(lstep,sindex)*(dx**2)+rmnc_b(lstep,sindex)*dx+rmnc_a(lstep,sindex)
-            zmns_arr(lstep)=zmns_d(lstep,sindex)*(dx**3)+zmns_c(lstep,sindex)*(dx**2)+zmns_b(lstep,sindex)*dx+zmns_a(lstep,sindex)
-        end do        
 
-        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr)
-        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
 
-        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr)
-        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr)
-        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr)
+        call compute_trig(x0(2), x0(3), nc%xm, nc%xn, sinvals, cosvals)  ! precomputing sine, cosine values for mnmax
+        call compute_trig(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, sinvals_nyq, cosvals_nyq)  ! precomputing sine, cosine values for mnmax_nyq
+
+
+        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr, cosvals_nyq)
+        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+
+        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr, sinvals_nyq)
+        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr, cosvals_nyq)
+        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr, cosvals_nyq)
         bsup(1)=0.0d0
-        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr)
-        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr)
-        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr)
+        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr, cosvals_nyq)
+        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr, cosvals_nyq)
+        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr, cosvals_nyq)
+        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr, cosvals_nyq)
 
         j(1)=0.0d0
-        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr)
-        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr)
+        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr, cosvals_nyq)
+        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr, cosvals_nyq)
 
-        call crossp(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
+        call crossp2(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
 
         b_n=bsup+eps*u*((mu0*j/b_abs)+(bxgb/(b_abs**2)))  ! row 1
         b_para_n=b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2))   ! row 2
@@ -380,29 +360,29 @@ program main
 
         end do
     
-        do lstep=1,nc%mnmax
-            rmnc_arr(lstep)=rmnc_d(lstep,sindex)*(dx**3)+rmnc_c(lstep,sindex)*(dx**2)+rmnc_b(lstep,sindex)*dx+rmnc_a(lstep,sindex)
-            zmns_arr(lstep)=zmns_d(lstep,sindex)*(dx**3)+zmns_c(lstep,sindex)*(dx**2)+zmns_b(lstep,sindex)*dx+zmns_a(lstep,sindex)
-        end do        
 
-        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr)
-        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
 
-        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr)
-        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr)
-        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr)
+        call compute_trig(x0(2), x0(3), nc%xm, nc%xn, sinvals, cosvals)  ! precomputing sine, cosine values for mnmax
+        call compute_trig(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, sinvals_nyq, cosvals_nyq)  ! precomputing sine, cosine values for mnmax_nyq
+
+        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr, cosvals_nyq)
+        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+
+        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr, sinvals_nyq)
+        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr, cosvals_nyq)
+        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr, cosvals_nyq)
         bsup(1)=0.0d0
-        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr)
-        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr)
-        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr)
+        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr, cosvals_nyq)
+        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr, cosvals_nyq)
+        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr, cosvals_nyq)
+        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr, cosvals_nyq)
 
         j(1)=0.0d0
-        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr)
-        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr)
+        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr, cosvals_nyq)
+        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr, cosvals_nyq)
 
-        call crossp(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
+        call crossp2(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
 
         b_n=bsup+eps*u*((mu0*j/b_abs)+(bxgb/(b_abs**2)))  ! row 1
         b_para_n=b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2))   ! row 2
@@ -438,29 +418,28 @@ program main
 
         end do
     
-        do lstep=1,nc%mnmax
-            rmnc_arr(lstep)=rmnc_d(lstep,sindex)*(dx**3)+rmnc_c(lstep,sindex)*(dx**2)+rmnc_b(lstep,sindex)*dx+rmnc_a(lstep,sindex)
-            zmns_arr(lstep)=zmns_d(lstep,sindex)*(dx**3)+zmns_c(lstep,sindex)*(dx**2)+zmns_b(lstep,sindex)*dx+zmns_a(lstep,sindex)
-        end do        
 
-        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr)
-        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr)
 
-        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr)
-        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr)
-        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr)
+        call compute_trig(x0(2), x0(3), nc%xm, nc%xn, sinvals, cosvals)  ! precomputing sine, cosine values for mnmax
+        call compute_trig(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, sinvals_nyq, cosvals_nyq)  ! precomputing sine, cosine values for mnmax_nyq
+        grad_b(1)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_ds_arr, cosvals_nyq)
+        grad_b(2)=compc_dtheta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+        grad_b(3)=compc_dzeta_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, b_abs_arr, sinvals_nyq)
+
+        bsub(1)=comps_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubs_arr, sinvals_nyq)
+        bsub(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubu_arr, cosvals_nyq)
+        bsub(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsubv_arr, cosvals_nyq)
         bsup(1)=0.0d0
-        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr)
-        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr)
-        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr)
-        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr)
+        bsup(2)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupu_arr, cosvals_nyq)
+        bsup(3)=compc_arg(x0(2),x0(3),nc%xm_nyq, nc%xn_nyq, bsupv_arr, cosvals_nyq)
+        b_abs=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, b_abs_arr, cosvals_nyq)
+        g=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, g_arr, cosvals_nyq)
 
         j(1)=0.0d0
-        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr)
-        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr)
+        j(2)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currumnc_arr, cosvals_nyq)
+        j(3)=compc_arg(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, currvmnc_arr, cosvals_nyq)
 
-        call crossp(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
+        call crossp2(bsub, grad_b, sig*g, bxgb)  ! saving b x grad_b in bxgb
 
         b_n=bsup+eps*u*((mu0*j/b_abs)+(bxgb/(b_abs**2)))  ! row 1
         b_para_n=b_abs+eps*u*(mu0*DOT_PRODUCT(j,bsub)/(b_abs**2))   ! row 2
