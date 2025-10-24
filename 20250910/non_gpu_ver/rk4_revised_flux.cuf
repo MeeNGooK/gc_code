@@ -99,7 +99,7 @@ program main
     write(unit_out,*) "u=", u
     write(unit_out,*) "v_perp=", v_perp
     write(unit_out,*)
-    write(unit_out,'(A)') "istep         r       z        zeta"
+    write(unit_out,'(A)') "istep        s       theta        zeta"
 
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
@@ -238,10 +238,10 @@ program main
         call compute_trig(x0(2), x0(3), nc%xm_nyq, nc%xn_nyq, sinvals_nyq, cosvals_nyq)  ! precomputing sine, cosine values for mnmax_nyq
         !!!!!!!!!!!!! Writing r,z, zeta   !!!!!!!!!!!!!!!!
         r=compc_arg(x0(2), x0(3), nc%xm, nc%xn, rmnc_arr, cosvals)
-        z=comps_arg(x0(2), x0(3), nc%xm, nc%xn, zmns_arr, sinvals)
+        z=comps_arg(x0(2), x0(3), nc%xm, nc%xn, zmns_arr, cosvals)
 
         if (mod(istep,zipper)==0) then
-            write(unit_out,'(I8,3ES20.10)') istep,r,z,x0(3)
+            write(unit_out,'(I8,3ES20.10)') istep,x0(1),x0(2),x0(3)
         end if
 
 

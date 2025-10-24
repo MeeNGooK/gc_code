@@ -1,27 +1,81 @@
 module set_values
     implicit none
+
+    ! ---------------- 기본 상수 ----------------
     real(8) :: x0(3)
-    real(8), parameter ::  mu0= 4.0d-7*3.141592653589793d0 ! magnetic permeability of vacuum
-    real(8), parameter :: m= 1*9.10938356d-31 ! 전자 질량 electron mass
-    real(8), parameter :: q = 1.0*1.602176634d-19  ! 전자 전하 electron charge
-    real(8), parameter :: eps  =m/q     ! epsilon
-      ! Constants
-    real(8), parameter :: dt=4.0d-9
-    real(8), parameter :: sig=-1.0d0
+    real(8), parameter :: mu0 = 4.0d-7 * 3.141592653589793d0
+    real(8), parameter :: m = 9.10938356d-31
+    real(8), parameter :: q = 1.602176634d-19
+    real(8), parameter :: eps = m / q
+    real(8) :: dt               ! 일반 변수로 변경
+    real(8), parameter :: sig = 1.0d0
 
-    INTEGER, parameter :: steps=60000000, zipper=400
-
+    integer :: steps            ! 일반 변수로 변경
+    integer :: zipper                ! 일반 변수로 변경
+    character(len=200) :: filename
     real(8) :: u, v_perp, v_perp_2
 
 contains
+
     subroutine init_val()
         implicit none
-        ! Setting (arbitary values)@@@@@@@@@@@@@@@@@@@@@@@@
-        x0=(/0.195, 1.3962, 9.5937/)  !(s, theta, zeta)
-        u=1.5d5
-        v_perp=4.3d5    ! v_perp/u~3 is recommended(bouncing)
-        v_perp_2=v_perp**2
+        character(len=200) :: arg1, arg2, arg3, arg4, arg5, arg6
 
+        ! 초기 좌표
+        x0 = (/0.14d0, 1.3962d0, 9.5937d0/)
+
+        ! 커맨드라인 인자 읽기
+        call get_command_argument(1, arg1)
+        call get_command_argument(2, arg2)
+        call get_command_argument(3, arg3)
+        call get_command_argument(4, arg4)
+        call get_command_argument(5, arg5)
+        call get_command_argument(6, arg6)
+
+        ! u 설정
+        if (len_trim(arg1) > 0) then
+            read(arg1, *) u
+        else
+            u = 1.0d6
+        end if
+
+        ! v_perp 설정
+        if (len_trim(arg2) > 0) then
+            read(arg2, *) v_perp
+        else
+            v_perp = 4.3d6
+        end if
+
+        ! filename 설정
+        if (len_trim(arg3) > 0) then
+            filename = trim(arg3)
+        else
+            filename = 'dat.dat'
+        end if
+
+        ! dt 설정
+        if (len_trim(arg4) > 0) then
+            read(arg4, *) dt
+        else
+            dt = 1.0d-9
+        end if
+
+        ! steps 설정
+        if (len_trim(arg5) > 0) then
+            read(arg5, *) steps
+        else
+            steps = 2000000
+        end if
+
+        ! zipper 설정
+        if (len_trim(arg6) > 0) then
+            read(arg6, *) zipper
+        else
+            zipper = 50
+        end if
+
+        ! v_perp^2 미리 계산
+        v_perp_2 = v_perp ** 2
     end subroutine init_val
 
 end module set_values
