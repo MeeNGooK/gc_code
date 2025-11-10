@@ -1,0 +1,15 @@
+module trig_compute
+    implicit none
+contains
+    subroutine compute_trig(theta, zeta, xm, xn, sinvals, cosvals)
+        real(8), intent(in) :: theta, zeta
+        integer, intent(in) :: xm(:), xn(:)
+        real(8), intent(out) :: sinvals(:), cosvals(:)
+        integer :: i
+
+        do i = 1, size(xm)
+            sinvals(i) = sin(xm(i)*theta - (xn(i)*0.5)*zeta)
+            cosvals(i) = cos(xm(i)*theta - (xn(i)*0.5)*zeta)
+        end do
+    end subroutine compute_trig
+end module trig_compute

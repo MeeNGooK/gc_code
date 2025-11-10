@@ -1,0 +1,27 @@
+module set_values
+    implicit none
+    real(8) :: x0(3)
+    real(8), parameter ::  mu0= 4.0d-7*3.141592653589793d0 ! magnetic permeability of vacuum
+    real(8), parameter :: m= 1*9.10938356d-31 ! 전자 질량 electron mass
+    real(8), parameter :: q = 1.0*1.602176634d-19  ! 전자 전하 electron charge
+    real(8), parameter :: eps  =m/q     ! epsilon
+      ! Constants
+    real(8), parameter :: dt=4.0d-10
+    real(8), parameter :: sig=1.0d0
+
+    INTEGER, parameter :: steps=30000000, zipper=100
+    character(len=20) :: filename
+    real(8) :: u, v_perp, v_perp_2
+
+contains
+    subroutine init_val()
+        implicit none
+        ! Setting (arbitary values)@@@@@@@@@@@@@@@@@@@@@@@@
+        x0=(/0.14, 1.3962, 9.5937/)  !(s, theta, zeta)
+        u=1.0d6
+        v_perp=4.3d6    ! v_perp/u~3 is recommended(bouncing)
+        v_perp_2=v_perp**2
+        filename='dat.dat'
+    end subroutine init_val
+
+end module set_values

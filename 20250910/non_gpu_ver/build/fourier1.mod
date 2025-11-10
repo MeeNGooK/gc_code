@@ -1,6 +1,6 @@
 V35 :0x24 fourier1
 12 fourier1.cuf S624 0
-10/24/2025  16:46:35
+10/30/2025  19:24:36
 use cubic_spline_mod public 0 direct
 enduse
 D 70 23 6 1 28 31 1 1 0 0 1

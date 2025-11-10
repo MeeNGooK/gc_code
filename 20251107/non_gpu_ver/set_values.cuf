@@ -1,0 +1,93 @@
+module set_values
+    implicit none
+
+    ! Constants and parameters
+    real(8) :: x0(3)
+    real(8), parameter :: mu0 = 4.0d-7 * 3.141592653589793d0
+    real(8) :: m_ratio, m                   ! m/m_e
+    real(8), parameter :: q = 1.602176634d-19
+    real(8) :: eps                 ! eps=m/q
+    real(8) :: dt
+    real(8), parameter :: sig = 1.0d0
+    real(8), parameter :: m_e=9.10938356d-31
+    integer :: steps
+    integer :: zipper
+    character(len=200) :: filename
+    real(8) :: u, v_perp, v_perp_2
+
+contains
+
+    subroutine init_val()
+        implicit none
+        character(len=200) :: arg1, arg2, arg3, arg4, arg5, arg6, arg7
+
+        ! 초기 좌표
+        x0 = (/0.197d0, 3.110d0, 9.5200d0/)
+
+        ! 커맨드라인 인자 읽기
+        call get_command_argument(1, arg1)  ! u
+        call get_command_argument(2, arg2)  ! v_perp
+        call get_command_argument(3, arg3)  ! filename
+        call get_command_argument(4, arg4)  ! dt
+        call get_command_argument(5, arg5)  ! steps
+        call get_command_argument(6, arg6)  ! zipper
+        call get_command_argument(7, arg7)  ! m
+
+        ! u 설정
+        if (len_trim(arg1) > 0) then
+            read(arg1, *) u
+        else
+            u = 1.0d6
+        end if
+
+        ! v_perp 설정
+        if (len_trim(arg2) > 0) then
+            read(arg2, *) v_perp
+        else
+            v_perp = 4.3d6
+        end if
+
+        ! filename 설정
+        if (len_trim(arg3) > 0) then
+            filename = trim(arg3)
+        else
+            filename = 'dat.dat'
+        end if
+
+        ! dt 설정
+        if (len_trim(arg4) > 0) then
+            read(arg4, *) dt
+        else
+            dt = 1.0d-9
+        end if
+
+        ! steps 설정
+        if (len_trim(arg5) > 0) then
+            read(arg5, *) steps
+        else
+            steps = 2000000
+        end if
+
+        ! zipper 설정
+        if (len_trim(arg6) > 0) then
+            read(arg6, *) zipper
+        else
+            zipper = 50
+        end if
+
+        ! m 설정
+        if (len_trim(arg7) > 0) then
+            read(arg7, *) m_ratio
+        else
+            m_ratio = 1.0d0  ! 기본값: m/m_e = 1
+        end if
+
+        ! eps 계산 (m/q)
+        m = m_e * m_ratio
+        eps = m / q
+
+        ! v_perp^2 미리 계산
+        v_perp_2 = v_perp ** 2
+    end subroutine init_val
+
+end module set_values
